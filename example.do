@@ -84,7 +84,7 @@ did_stepwise Y i t Ei, agg
 
 did_stepwise Y i t Ei, pretrends(4)
 
-* Alternatively add also the pretrend estimate corresponding to the baseline period (mechanically zero)
+* Alternatively add also the pretrend estimate corresponding to the baseline period (mechanically this equals zero)
 
 did_stepwise Y i t Ei, pretrends(4) includepre1
 
@@ -100,6 +100,30 @@ did_stepwise Y i t Ei, contcov(X1) catcov(X2)
 
 did_stepwise Y i t Ei, cluster(clust)
 
+*** The code below shows how to create a standard event study plot of SWDD with estimates using the event_plot package
+*** (this requires the event_plot package to be installed)
 
+* Estimate treatment effects and store estimates and variances
+
+did_stepwise Y i t Ei
+
+matrix blag=e(b)
+matrix Vlag=vecdiag(e(V))
+
+* Estimate pretrend coefficients and store estimates and variances
+
+did_stepwise Y i t Ei, pretrends(4) includepre1
+
+matrix blead=e(b)
+matrix Vlead=vecdiag(e(V))
+
+* Stack the treatment effects and pretreatment results
+
+matrix b=blag,blead
+matrix V=Vlag,Vlead
+
+* Produce an event plot
+
+event_plot b#V, stub_lag(tau_horizon#) stub_lead(tau_pretrend#)  default_look graph_opt(xtitle("Time since event") ytitle("Coefficients"))
 
 

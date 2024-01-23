@@ -2,7 +2,7 @@
 *! Treatment effect estimation in differnce-in-difference designs using the Stepwise DID estimator of Harmon (2023)
 *! The program is mostly a wrapper script for did_imputation which appropriately differences the data and creates
 *! weights for the relevant ATEs.
-*! Version: October 25, 2023
+*! Version: November 7, 2023
 *! Author: Nikolaj Harmon
 *! Citation:
 *! Please cite both of the below.
@@ -88,7 +88,7 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	if "`catcovariates'"!="" {
 	loc icatcov
 	foreach x in `catcovariates' {
-	loc icatcov `icatcov' t#`x'
+	loc icatcov `icatcov' `t'#`x'
 	}
 	}
 	
@@ -210,7 +210,8 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	tempvar Y_orig
 	qui gen `Y_orig'=`Y'
 	qui replace `Y'=.
-	qui bysort `i'(`t'): replace `Y'=`Y_orig'-`Y_orig'[_n-1] if `t'==`t'[_n-1]+1 & `insample'==1 & `insample'[_n-1]==1
+	qui sort `i' `t'
+	qui by `i': replace `Y'=`Y_orig'-`Y_orig'[_n-1] if `t'==`t'[_n-1]+1 & `insample'==1 & `insample'[_n-1]==1
 
 	* Generate variables measuring number of periods since treatment and highest 
 	* observed number of posttreatment periods
@@ -219,7 +220,7 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	
 	qui gen `K' = `t'-`ei' if `insample'==1
 	
-	qui egen `maxK'=max(K) if `insample'==1, by(`i')
+	qui egen `maxK'=max(`K') if `insample'==1, by(`i')
 	
 	
 	* If Stata weights are specified then check that treated observations all receive a weight of 1 (if not doing fast version)
@@ -251,7 +252,7 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	loc exist_h_vars
 	tempvar h_backup
 	
-	foreach x of numlist 0/`maxmaxK' {
+	forvalues x = 0/`maxmaxK' {
  
 	capture confirm variable horizon`x'
 		if _rc==0 {
@@ -266,10 +267,11 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	
 	loc horizon_vars
 
-	foreach x of numlist 0/`maxmaxK' {
+	forvalues x = 0/`maxmaxK' {
 	
 	qui su `iwtr' if `K'==`x' & `Y'!=. & `insample'==1, meanonly
-    qui bysort `i'(`t'): gen horizon`x' = ( (`K'>=0 & `K'<=`x')  & (`maxK'>=`x' ) & `Y'!=. ) * (`iwtr'/r(sum)) if `insample'==1 & `Y'!=.
+	qui sort `i' `t'
+	qui by `i': gen horizon`x' = ( (`K'>=0 & `K'<=`x')  & (`maxK'>=`x' ) & `Y'!=. ) * (`iwtr'/r(sum)) if `insample'==1 & `Y'!=.
 	
 	loc horizon_vars `horizon_vars' horizon`x'
 	}
@@ -296,7 +298,7 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	qui su `iwtr' if `K'>=0 & `K'!=. & `Y'!=.  & `insample'==1 , meanonly
 	matrix `posttreats'=r(sum)
 	
-	foreach x of numlist 0/`maxmaxK' {
+	forvalues x = 0/`maxmaxK' {
 	
 	qui su `iwtr' if `K'==`x' & `Y'!=. & `insample'==1, meanonly
 	qui replace `agghor'=`agghor'+horizon`x'*r(sum)/`posttreats'[1,1] if `insample'==1 & `Y'!=.
@@ -321,7 +323,7 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	
 	
 	capture noisily did_imputation `Y' `i' `t' `ei' if `insample'==1 `long_weight' , wtr(`horizon_vars' `agghor') sum minn(`minn') ///
-	`long_avgeffectsby' fe(t `icatcov')  ///
+	`long_avgeffectsby' fe(`t' `icatcov')  ///
 	`long_cluster' tol(`tol') maxit(`maxit') `verbose' `nose' `long_contcov'
 	
 	if _rc!=0 {
@@ -411,7 +413,8 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	tempvar Y_orig
 	qui gen `Y_orig'=`Y'
 	qui replace `Y'=.
-	qui bysort `i_new'(`t_new'): replace `Y'=`Y_orig'-`Y_orig'[_n-1] if `t_new'==`t_new'[_n-1]+1 & `insample'==1 & `insample'[_n-1]==1
+	qui sort `i_new' `t_new'
+	qui by `i_new': replace `Y'=`Y_orig'-`Y_orig'[_n-1] if `t_new'==`t_new'[_n-1]+1 & `insample'==1 & `insample'[_n-1]==1
 	
 	* Generate variables measuring number of periods since treatment and highest 
 	* observed number of posttreatment periods
@@ -452,7 +455,7 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	loc exist_h_vars
 	tempvar h_backup
 	
-	foreach x of numlist -1/`maxmaxK' {
+	forvalues x = -1/`maxmaxK' {
 		
 		loc xp2=`x'+2
  
@@ -477,12 +480,13 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	loc horizon_vars
 	}
 
-	foreach x of numlist 0/`maxmaxK' {
+	forvalues x = 0/`maxmaxK' {
 		
 				loc xp2=`x'+2
 	
 	qui su `iwtr' if `K'==`x' & `Y'!=. & `insample'==1, meanonly
-    qui bysort `i_new'(`t_new'): gen pretrend`xp2' = ( (`K'>=0 & `K'<=`x')  & (`maxK'>=`x' ) & `Y'!=. ) * (`iwtr'/r(sum)) if `insample'==1 & `Y'!=.
+	qui sort `i_new' `t_new'
+    qui by `i_new': gen pretrend`xp2' = ( (`K'>=0 & `K'<=`x')  & (`maxK'>=`x' ) & `Y'!=. ) * (`iwtr'/r(sum)) if `insample'==1 & `Y'!=.
 	
 	loc horizon_vars `horizon_vars' pretrend`xp2'
 	}
@@ -509,7 +513,7 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	qui su `iwtr' if `K'>=0 & `K'!=. & `Y'!=.  & `insample'==1 , meanonly
 	matrix `posttreats'=r(sum)
 	
-	foreach x of numlist 0/`maxmaxK' {
+	forvalues x = 0/`maxmaxK' {
 		
 		loc xp2=`x'+2
 	
@@ -534,7 +538,7 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	}
 	
 	capture noisily did_imputation `Y' `i_new' `t_new' `ei_new' if `insample'==1 `long_weight'  , wtr(`horizon_vars' `agghor') sum minn(`minn') ///
-	`long_avgeffectsby' fe(t `icatcov')  ///
+	`long_avgeffectsby' fe(`t' `icatcov')  ///
 	`long_cluster' tol(`tol') maxit(`maxit') `verbose' `nose' `long_contcov'
 	
 	if _rc!=0 {

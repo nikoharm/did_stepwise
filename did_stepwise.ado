@@ -2,7 +2,7 @@
 *! Treatment effect estimation in differnce-in-difference designs using the Stepwise DID estimator of Harmon (2023)
 *! The program is mostly a wrapper script for did_imputation which appropriately differences the data and creates
 *! weights for the relevant ATEs.
-*! Version: November 7, 2023
+*! Version: 1.1, January 25, 2024
 *! Author: Nikolaj Harmon
 *! Citation:
 *! Please cite both of the below.
@@ -322,7 +322,7 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	*/
 	
 	
-	capture noisily did_imputation `Y' `i' `t' `ei' if `insample'==1 `long_weight' , wtr(`horizon_vars' `agghor') sum minn(`minn') ///
+	capture noisily did_imputation `Y' `i' `t' `ei' if `insample'==1 `long_weight' , wtr(`horizon_vars' `agghor') sum delta(1) minn(`minn') ///
 	`long_avgeffectsby' fe(`t' `icatcov')  ///
 	`long_cluster' tol(`tol') maxit(`maxit') `verbose' `nose' `long_contcov'
 	
@@ -537,7 +537,7 @@ syntax varlist(min=4 max=4) [if] [aw /] [, iwtr(varname) minn(integer 30)  ///
 	noi disp ""
 	}
 	
-	capture noisily did_imputation `Y' `i_new' `t_new' `ei_new' if `insample'==1 `long_weight'  , wtr(`horizon_vars' `agghor') sum minn(`minn') ///
+	capture noisily did_imputation `Y' `i_new' `t_new' `ei_new' if `insample'==1 `long_weight'  , wtr(`horizon_vars' `agghor') sum delta(1) minn(`minn') ///
 	`long_avgeffectsby' fe(`t' `icatcov')  ///
 	`long_cluster' tol(`tol') maxit(`maxit') `verbose' `nose' `long_contcov'
 	
